@@ -83,7 +83,25 @@ class Shippers extends ResourceBase
     }
 
     /**
-     * @param array{email: string, name: string, trn: string, phone?: string, addressLine1?: string, addressLine2?: string, city?: string, parish?: string} $input
+     * Create a shipper. An address is provisioned on the same call — provide
+     * the existing label code via `addressCode`, or set `generateAddressCode`
+     * to true for the platform to mint one using the courier's default
+     * warehouse. Prefix must match one of the courier's warehouses.
+     *
+     * @param array{
+     *     email: string,
+     *     name: string,
+     *     trn: string,
+     *     phone?: string,
+     *     addressLine1?: string,
+     *     addressLine2?: string,
+     *     city?: string,
+     *     parish?: string,
+     *     addressCode?: string,
+     *     warehouseId?: string,
+     *     freightType?: string,
+     *     generateAddressCode?: bool
+     * } $input
      * @return array<string, mixed>
      */
     public function create(array $input): array
@@ -224,6 +242,20 @@ class Shippers extends ResourceBase
     }
 
     /**
+     * Upsert-by-email. On create, `addressCode` is required (or set
+     * `generateAddressCode` to true). On update, the address code is
+     * preserved unless `forceAddressCode` is true — in which case the new
+     * code must share the same prefix as the existing one.
+     *
+     * Error codes you may get back in `code`:
+     *   - `ADDRESS_CODE_REQUIRED`
+     *   - `ADDRESS_CODE_FORMAT_INVALID`
+     *   - `ADDRESS_PREFIX_UNKNOWN`
+     *   - `WAREHOUSE_PREFIX_MISMATCH`
+     *   - `ADDRESS_CODE_CONFLICT`
+     *   - `ADDRESS_CODE_IMMUTABLE` (missing `forceAddressCode`)
+     *   - `ADDRESS_CODE_PREFIX_MISMATCH` (cross-prefix replace blocked)
+     *
      * @param array<string, mixed> $input
      * @return array<string, mixed>
      */
