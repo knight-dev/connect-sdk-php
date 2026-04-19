@@ -1,6 +1,5 @@
 vendor/
 composer.lock
 .phpunit.cache/
-coverage/
-.DS_Store
-*.log
+.phpstan.cache/
+.php-cs-fixer.cache
