@@ -8,7 +8,7 @@ class Manifests extends ResourceBase
 {
     /**
      * @param array{status?: string, type?: string, page?: int, pageSize?: int} $options
-     * @return array<string, mixed>
+     * @return array{data: list<array<string, mixed>>, pagination: array<string, int>}
      */
     public function list(array $options = []): array
     {
@@ -23,7 +23,10 @@ class Manifests extends ResourceBase
             'path' => '/api/v1/manifests',
             'query' => $query,
         ]);
-        return $raw['data'] ?? [];
+        return [
+            'data' => $raw['data'] ?? [],
+            'pagination' => $raw['pagination'] ?? [],
+        ];
     }
 
     /**

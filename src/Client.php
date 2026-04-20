@@ -38,7 +38,7 @@ use Psr\Http\Client\ClientInterface;
  */
 class Client
 {
-    public const SDK_VERSION = '0.1.0';
+    public const SDK_VERSION = '0.1.1';
     public const SDK_NAME = 'logicware/connect-sdk';
 
     public readonly HttpClient $http;

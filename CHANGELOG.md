@@ -7,31 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- Shipper create/sync/bulk/import inputs accept address-provisioning fields:
-  `addressCode` (the courier's existing label code — required on create unless
-  `generateAddressCode` is `true`), `warehouseId`, `freightType`,
-  `generateAddressCode` (opt-in auto-generate using the default warehouse),
-  and `forceAddressCode` (opt-in replace; same-prefix only).
-- Per-row bulk results now include `addressCode` and `addressOutcome`
-  (`'created' | 'updated' | 'unchanged'`).
-- New error codes surfaced via `LogicwareApiException::getErrorCode()`:
-  `ADDRESS_CODE_REQUIRED`, `ADDRESS_CODE_FORMAT_INVALID`,
-  `ADDRESS_PREFIX_UNKNOWN`, `WAREHOUSE_PREFIX_MISMATCH`,
-  `ADDRESS_CODE_CONFLICT`, `ADDRESS_CODE_IMMUTABLE`,
-  `ADDRESS_CODE_PREFIX_MISMATCH`.
+## [0.1.1] — 2026-04-20
 
 ### Changed
-- First-time `shippers->sync()` / `create()` / `bulkCreate()` calls now
-  provision the shipper's primary address in the same round-trip — no
-  separate `shippers->addresses->create()` step needed. The manual CRUD
-  endpoint stays available for secondary addresses.
+- `Manifests::list()` now returns `['data' => [...], 'pagination' => [...]]` — matches the common V1 envelope returned by every other resource. Previously returned just the raw `data` dict (which had nested `manifests`/`totalCount`/etc). Callers reading `$result['data']` still work; now they also get `$result['pagination']` consistently. This is aligned with the api-courier shape normalization shipped on 2026-04-20.
 
-## [0.1.0] — 2026-04-18
+### Server-side fixes (shipped by api-courier — consumers see them without SDK changes)
+- `Package` responses and `package.status_changed` / `package.updated` webhooks now include `freightType` (`'Air'` | `'Sea'`). Access via `$package['freightType']` or `$event['data']['freightType']`.
+- Pre-alert list stats are now scoped to the calling courier instead of summing across every courier on the platform.
+- Package and Manifest list endpoints now return the common `{ success, data: [...], pagination: {...} }` envelope.
+
+## [0.1.0] — 2026-04-19
+
+First public release. Covers the full v1 "bring your own website" surface.
 
 ### Added
-- Initial scaffold release.
-- `Logicware\Connect\Client` root client with `apiKey` + `baseUrl` constructor options.
+
+**Core client**
+- `Logicware\Connect\Client` with `apiKey` + `baseUrl` constructor options.
 - `Logicware\Connect\Http\HttpClient` PSR-18 transport with:
   - `X-Api-Key` auth header
   - JSON encoding/decoding
@@ -39,13 +32,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Configurable timeout (default 30s)
   - `Idempotency-Key` header pass-through
   - Client-generated `X-Request-Id` pass-through
-- `LogicwareException`, `LogicwareApiException`, `LogicwareNetworkException`.
+
+**Resources**
+- `client->warehouses` — `list()`, `get()`.
+- `client->shippers` — `list`, `get`, `getByEmail`, `getByCode`, `create`, `update`, `delete`, `sync` (upsert-by-email), `bulkCreate` (auto-chunks at 500), `importMany` (async up to 100k), `getImport`, `getImportFailures`, `importProgress` (generator).
+- `client->shippers->addresses` — full CRUD for secondary addresses.
+- `client->packages` — `list`, `get`, `getByTracking`, `update`, `forShipper`, `forManifest`.
+- `client->manifests` — `list`, `get`, `create`, `update`, `setOpen`, `close`, `reopen`, `finalize`, `setStatus`, `addPackages`, `removePackage`.
+- `client->prealerts` — `list`, `get`, `create`, `cancel`, `lookupByTracking`.
+- `client->intake` — `searchUnidentified`, `listUnclaimed`, `listReceived`.
+- `client->missingPackages` — `list`, `get`, `create`, `cancel`, `close`.
+- `client->rates` — `calculate`.
+
+**Shipper address provisioning** (first-class on every shipper write)
+- `addressCode` — the courier's existing label code. Required on create unless `generateAddressCode` is `true`.
+- `warehouseId`, `freightType`, `generateAddressCode`, `forceAddressCode` — see the docs.
+- Per-row bulk results include `addressCode` + `addressOutcome`.
+
+**Webhooks**
+- `Logicware\Connect\Webhooks\Verifier::verify($rawBody, $headers, $secret, $tolerance)` — timing-safe HMAC-SHA256 verification of `X-Logicware-Signature` with 300s replay tolerance on `X-Logicware-Timestamp`. Supports the full event catalog: `package.received`, `package.status_changed`, `package.updated`, `package.deleted`, `manifest.created`, `manifest.closed`, `manifest.reopened`, `prealert.matched`, `prealert.expired`, `intake.unidentified`, `intake.unclaimed`, `missing_package.created`, `missing_package.resolved`.
+
+**Errors**
+- `LogicwareException` (base), `LogicwareApiException` (HTTP non-2xx), `LogicwareNetworkException` (transport).
+- `WebhookVerificationException` for the verifier path.
+- Address-provisioning error codes: `ADDRESS_CODE_REQUIRED`, `ADDRESS_CODE_FORMAT_INVALID`, `ADDRESS_PREFIX_UNKNOWN`, `WAREHOUSE_PREFIX_MISMATCH`, `ADDRESS_CODE_CONFLICT`, `ADDRESS_CODE_IMMUTABLE`, `ADDRESS_CODE_PREFIX_MISMATCH`.
+
+### Tooling
 - PHPUnit 10 test suite.
-- PHPStan level 8 static analysis configuration.
+- PHPStan level 8 static analysis.
+- php-cs-fixer configuration.
 
-### Not yet
-
-Resources (shippers, packages, manifests, pre-alerts, intake, missing packages, warehouses, webhook verify) ship in `0.2.0`.
-
-[Unreleased]: https://github.com/knight-dev/connect-sdk-php/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/knight-dev/connect-sdk-php/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/knight-dev/connect-sdk-php/releases/tag/v0.1.1
 [0.1.0]: https://github.com/knight-dev/connect-sdk-php/releases/tag/v0.1.0
